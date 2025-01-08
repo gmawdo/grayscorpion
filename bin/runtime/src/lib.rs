@@ -6,7 +6,7 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
-use log::{debug, error};
+//use log::{debug, error};
 
 pub use frame_support::{
     construct_runtime,
