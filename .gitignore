@@ -30,3 +30,8 @@ contracts/addresses.json
 
 # run_nodes.sh
 run-nodes-local/
+
+# Ignore .DS_Store files in all directories
+**/.DS_Store
+
+Cargo.lock
