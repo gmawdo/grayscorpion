@@ -6,6 +6,8 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+use log::{debug, error};
+
 pub use frame_support::{
     construct_runtime,
     genesis_builder_helper::{build_config, create_default_config},
@@ -1615,7 +1617,6 @@ mod tests {
     }
 }
 
-
 //#![cfg_attr(not(feature = "std"), no_std)]
 
 #[frame_support::pallet]
@@ -1625,6 +1626,7 @@ pub mod pallet_template {
     use scale_info::prelude::vec::Vec;
 
     const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+    const LOG_TARGET: &str = "GRAYMAMBA";
 
     #[pallet::pallet]
     #[pallet::storage_version(STORAGE_VERSION)]
@@ -1712,8 +1714,12 @@ pub mod pallet_template {
             <DisReAssembly<T>>::insert(&sender, nonce, &event);
             Nonces::<T>::insert(&sender, nonce + 1);
 
-            // <DisReAssembly<T>>::insert(&sender, &event);
-
+            log::debug!(
+                target: LOG_TARGET,
+                "🔍 FileDisassembled: sender {:?}, event {:?}",
+                sender,
+                event
+            );
             Self::deposit_event(Event::<T>::FileDisassembled { who: sender.clone(), event: event.clone() });
 
             Ok(())
@@ -1764,9 +1770,23 @@ pub mod pallet_template {
             
             // <DisReAssembly<T>>::insert(&sender, &event);
 
-            Self::deposit_event(Event::<T>::FileReassembled { who: sender.clone(), event: event.clone() });
+            log::debug!(
+                target: LOG_TARGET,
+                "🔍 FileResassembled: sender {:?}, event {:?}",
+                sender,
+                event
+            );
+            match Self::deposit_event(Event::<T>::FileReassembled { who: sender.clone(), event: event.clone() }) {
+                _ => log::debug!(
+                    target: LOG_TARGET,
+                    "✅ Event deposited successfully: sender {:?}, event {:?}",
+                    sender,
+                    event
+                ),
+            }
 
             Ok(())
         }
     }
 }
+
