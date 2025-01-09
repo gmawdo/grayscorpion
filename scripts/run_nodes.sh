@@ -186,6 +186,7 @@ function run_node() {
     -laleph-data-store=debug
     -laleph-updater=debug
     -laleph-metrics=debug
+    -lGRAYMAMBA=debug
   )
 
   info "Running node ${index}..."
