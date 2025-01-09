@@ -5,6 +5,11 @@ It simply exists in order to provide the basis for a new current fork and an imp
 
 This repo will therefore disappear in the future and replaced with a new repo forked from Aleph Zero and with a bespoke blockchain pallet.
 
+#### Aide Memoire to quick runtime setup
+  `./scripts/run_nodes.sh --validators 1 --rpc-nodes 1`
+  `killall -9 aleph-node`
+  `rm -rf run-nodes-local`
+
 [![LOGO][aleph-logo]][aleph-homepage]
 
 This repository contains the Rust implementation of [Aleph Zero][aleph-homepage] blockchain node based on the [Substrate][substrate-homepage] framework.
