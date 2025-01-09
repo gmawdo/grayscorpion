@@ -32,6 +32,9 @@ contracts/addresses.json
 run-nodes-local/
 
 # Ignore .DS_Store files in all directories
+.DS_Store
+._.DS_Store
 **/.DS_Store
+**/._.DS_Store
 
 Cargo.lock
