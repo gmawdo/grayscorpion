@@ -6,6 +6,8 @@
 #[cfg(feature = "std")]
 include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
+//use log::{debug, error};
+
 pub use frame_support::{
     construct_runtime,
     genesis_builder_helper::{build_config, create_default_config},
@@ -974,6 +976,11 @@ impl pallet_tx_pause::Config for Runtime {
     type WeightInfo = pallet_tx_pause::weights::SubstrateWeight<Runtime>;
 }
 
+impl pallet_template::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	//type WeightInfo = pallet_template::weights::SubstrateWeight<Runtime>;
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
     pub struct Runtime {
@@ -1005,6 +1012,7 @@ construct_runtime!(
         SafeMode: pallet_safe_mode = 25,
         TxPause: pallet_tx_pause = 26,
         Operations: pallet_operations = 255,
+        TemplateModule: crate::pallet_template::{Pallet, Call, Storage, Event<T>} = 50
     }
 );
 
@@ -1046,6 +1054,7 @@ mod benches {
         [pallet_feature_control, FeatureControl]
         [pallet_vk_storage, VkStorage]
         [baby_liminal_extension, baby_liminal_extension::ChainExtensionBenchmarking<Runtime>]
+        [pallet_template, TemplateModule]
     );
 }
 
@@ -1607,3 +1616,177 @@ mod tests {
         assert!(lhs < rhs);
     }
 }
+
+//#![cfg_attr(not(feature = "std"), no_std)]
+
+#[frame_support::pallet]
+pub mod pallet_template {
+    use frame_support::{pallet_prelude::*, traits::StorageVersion}; //, sp_runtime::RuntimeAppPublic};
+    use frame_system::pallet_prelude::*;
+    use scale_info::prelude::vec::Vec;
+
+    const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+    const LOG_TARGET: &str = "GRAYMAMBA";
+
+    #[pallet::pallet]
+    #[pallet::storage_version(STORAGE_VERSION)]
+    pub struct Pallet<T>(_);
+
+    #[pallet::config]
+    pub trait Config: frame_system::Config {
+        type RuntimeEvent: From<Event<Self>> + IsType<<Self as frame_system::Config>::RuntimeEvent>;
+    }
+
+    #[derive(Encode, Decode, MaxEncodedLen, TypeInfo, Debug, Clone, PartialEq, Eq)]
+    pub struct FSEvent {
+        pub eventtype: [u8; 64],
+        pub creationtime: [u8; 64],
+        pub filepath: [u8; 256],
+        pub eventkey: [u8; 128],
+    }
+
+    #[pallet::storage]
+    #[pallet::getter(fn info)]
+    // pub(super) type DisReAssembly<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, FSEvent, OptionQuery>;
+    pub(super) type DisReAssembly<T: Config> = StorageDoubleMap< _, Blake2_128Concat, T::AccountId, Blake2_128Concat, u64, FSEvent, OptionQuery>;
+
+    #[pallet::storage]
+    #[pallet::getter(fn nonces)]
+    pub(super) type Nonces<T: Config> = StorageMap<_, Blake2_128Concat, T::AccountId, u64, ValueQuery>;
+
+    #[pallet::event]
+    #[pallet::generate_deposit(pub(super) fn deposit_event)]
+    pub enum Event<T: Config> {
+        FileDisassembled { who: T::AccountId, event: FSEvent },
+        FileReassembled { who: T::AccountId, event: FSEvent },
+    }
+
+    #[pallet::error]
+    pub enum Error<T> {
+        EventTypeTooLong,
+        CreationTimeTooLong,
+        FilePathTooLong,
+        EventKeyTooLong,
+    }
+
+    #[pallet::call]
+    impl<T: Config> Pallet<T> {
+        #[pallet::call_index(0)]
+        #[pallet::weight((Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1), DispatchClass::Operational))]
+        pub fn disassembled(
+            origin: OriginFor<T>,
+            event_type: Vec<u8>,
+            creation_time: Vec<u8>,
+            file_path: Vec<u8>,
+            event_key: Vec<u8>,
+        ) -> DispatchResult {
+            let sender = ensure_signed(origin)?;
+
+            ensure!(event_type.len() <= 64, Error::<T>::EventTypeTooLong);
+            ensure!(creation_time.len() <= 64, Error::<T>::CreationTimeTooLong);
+            ensure!(file_path.len() <= 256, Error::<T>::FilePathTooLong);
+            ensure!(event_key.len() <= 128, Error::<T>::EventKeyTooLong);
+
+            let event = FSEvent {
+                eventtype: {
+                    let mut arr = [0u8; 64];
+                    arr[..event_type.len()].copy_from_slice(&event_type);
+                    arr
+                },
+                creationtime: {
+                    let mut arr = [0u8; 64];
+                    arr[..creation_time.len()].copy_from_slice(&creation_time);
+                    arr
+                },
+                filepath: {
+                    let mut arr = [0u8; 256];
+                    arr[..file_path.len()].copy_from_slice(&file_path);
+                    arr
+                },
+                eventkey: {
+                    let mut arr = [0u8; 128];
+                    arr[..event_key.len()].copy_from_slice(&event_key);
+                    arr
+                },
+            };
+
+            let nonce = Nonces::<T>::get(&sender);
+            <DisReAssembly<T>>::insert(&sender, nonce, &event);
+            Nonces::<T>::insert(&sender, nonce + 1);
+
+            log::debug!(
+                target: LOG_TARGET,
+                "🔍 FileDisassembled: sender {:?}, event {:?}",
+                sender,
+                event
+            );
+            Self::deposit_event(Event::<T>::FileDisassembled { who: sender.clone(), event: event.clone() });
+
+            Ok(())
+        }
+
+        #[pallet::call_index(1)]
+        #[pallet::weight((Weight::from_parts(10_000, 0) + T::DbWeight::get().writes(1), DispatchClass::Operational))]
+        pub fn reassembled(
+            origin: OriginFor<T>,
+            event_type: Vec<u8>,
+            creation_time: Vec<u8>,
+            file_path: Vec<u8>,
+            event_key: Vec<u8>,
+        ) -> DispatchResult {
+            let sender = ensure_signed(origin)?;
+
+            ensure!(event_type.len() <= 64, Error::<T>::EventTypeTooLong);
+            ensure!(creation_time.len() <= 64, Error::<T>::CreationTimeTooLong);
+            ensure!(file_path.len() <= 256, Error::<T>::FilePathTooLong);
+            ensure!(event_key.len() <= 128, Error::<T>::EventKeyTooLong);
+
+            let event = FSEvent {
+                eventtype: {
+                    let mut arr = [0u8; 64];
+                    arr[..event_type.len()].copy_from_slice(&event_type);
+                    arr
+                },
+                creationtime: {
+                    let mut arr = [0u8; 64];
+                    arr[..creation_time.len()].copy_from_slice(&creation_time);
+                    arr
+                },
+                filepath: {
+                    let mut arr = [0u8; 256];
+                    arr[..file_path.len()].copy_from_slice(&file_path);
+                    arr
+                },
+                eventkey: {
+                    let mut arr = [0u8; 128];
+                    arr[..event_key.len()].copy_from_slice(&event_key);
+                    arr
+                },
+            };
+
+            let nonce = Nonces::<T>::get(&sender);
+            <DisReAssembly<T>>::insert(&sender, nonce, &event);
+            Nonces::<T>::insert(&sender, nonce + 1);
+            
+            // <DisReAssembly<T>>::insert(&sender, &event);
+
+            log::debug!(
+                target: LOG_TARGET,
+                "🔍 FileResassembled: sender {:?}, event {:?}",
+                sender,
+                event
+            );
+            match Self::deposit_event(Event::<T>::FileReassembled { who: sender.clone(), event: event.clone() }) {
+                _ => log::debug!(
+                    target: LOG_TARGET,
+                    "✅ Event deposited successfully: sender {:?}, event {:?}",
+                    sender,
+                    event
+                ),
+            }
+
+            Ok(())
+        }
+    }
+}
+
