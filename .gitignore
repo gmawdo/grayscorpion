@@ -36,5 +36,3 @@ run-nodes-local/
 ._.DS_Store
 **/.DS_Store
 **/._.DS_Store
-
-Cargo.lock
