@@ -1,3 +1,10 @@
+### WARNING
+This is an orphaned fork of the Aleph Repo that contains an experiemental alternative to a pure Substrate bespoke blockchain.
+
+It simply exists in order to provide the basis for a new current fork and an improved architectural approach to specifying a bespoke blockchain, namely a bespoke blockchain implemented as a pallet and then included in the runtime.
+
+This repo will therefore disappear in the future and replaced with a new repo forked from Aleph Zero and with a bespoke blockchain pallet.
+
 [![LOGO][aleph-logo]][aleph-homepage]
 
 This repository contains the Rust implementation of [Aleph Zero][aleph-homepage] blockchain node based on the [Substrate][substrate-homepage] framework.
